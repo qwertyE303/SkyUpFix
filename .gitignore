@@ -1,0 +1,17 @@
+# Build output
+build/
+build-*/
+*.bmod
+*.bmodp
+
+# MSVC artifacts
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.map
+.vs/
+*.user
+
+*.bat
+/bml-old/*.bat
