@@ -117,6 +117,11 @@ public:
         g_framesAfterStart = 0;
     }
 
+    void OnPostResetLevel() override {
+        g_framesAfterStart = 0;
+        g_applied = false;
+    }
+
     void OnPostExitLevel() override {
         g_framesAfterStart = -1;
         g_applied = false;
@@ -396,6 +401,13 @@ private:
             }
         }
 
+        // Community texture packs expect the top rotated 180 degrees:
+        // swap front/back and left/right relative to the Down mapping.
+        for (Corner &c : corners) {
+            c.u = c.u;
+            c.v = 1.0f - c.v;
+        }
+
         const VxVector e1 = corners[1].pos - corners[0].pos;
         const VxVector e2 = corners[2].pos - corners[0].pos;
         const VxVector normal(e1.y * e2.z - e1.z * e2.y, e1.z * e2.x - e1.x * e2.z,
@@ -509,13 +521,28 @@ private:
         return true;
     }
 
-    void ApplyTopFace() {
-        if (g_applied)
-            return;
+    static bool MeshHasTop(CKMesh *mesh) {
+        // The vanilla TT Sky mesh has 12 triangles (4 sides + 4 Down fan
+        // triangles); this mod appends exactly 2.  Checking the count avoids
+        // touching face materials that may already belong to a destroyed
+        // level after a restart.
+        return mesh && mesh->GetFaceCount() > 12;
+    }
 
+    void ApplyTopFace() {
         CKMesh *mesh = FindSkyMesh();
         if (!mesh)
             return;
+
+        // Restarting a level can recreate TT_Sky_Mesh while death/respawn keeps
+        // it.  Look at the current mesh instead of trusting the previous
+        // level's g_applied flag, so a fresh mesh gets the top again and a
+        // reused mesh is not duplicated.
+        if (MeshHasTop(mesh)) {
+            g_applied = true;
+            return;
+        }
+        g_applied = false;
 
         const std::string letter = DetectLetter(mesh);
         if (letter.empty())
