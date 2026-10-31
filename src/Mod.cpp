@@ -494,16 +494,31 @@ private:
 
         const bool prelit = (mesh->GetLitMode() == VX_PRELITMESH);
         const VxVector down(0.0f, -1.0f, 0.0f);
-        const CKDWORD color = mesh->GetVertexColor(0);
         for (int i = 0; i < 4; ++i) {
             VxVector p = corners[static_cast<size_t>(i)].pos;
             mesh->SetVertexPosition(baseVertex + i, &p);
             mesh->SetVertexTextureCoordinates(baseVertex + i, corners[static_cast<size_t>(i)].u,
                                               corners[static_cast<size_t>(i)].v);
-            if (prelit)
-                mesh->SetVertexColor(baseVertex + i, color);
-            else
+            if (prelit) {
+                // Take the colour of the nearest existing vertex instead of vertex
+                // 0.  The retail box does not have to be uniformly prelit; using a
+                // single colour for the whole new face leaves a slight tint step
+                // along the cube edge even when the texture matches exactly.
+                int nearest = 0;
+                float best = 3.0e38f;
+                for (int v = 0; v < baseVertex; ++v) {
+                    const VxVector &q = positions[static_cast<size_t>(v)];
+                    const float dx = q.x - p.x, dy = q.y - p.y, dz = q.z - p.z;
+                    const float d = dx * dx + dy * dy + dz * dz;
+                    if (d < best) {
+                        best = d;
+                        nearest = v;
+                    }
+                }
+                mesh->SetVertexColor(baseVertex + i, mesh->GetVertexColor(nearest));
+            } else {
                 mesh->SetVertexNormal(baseVertex + i, const_cast<VxVector *>(&down));
+            }
         }
 
         mesh->SetFaceVertexIndex(baseFace + 0, baseVertex + 0, baseVertex + 1, baseVertex + 2);
